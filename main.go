@@ -51,30 +51,51 @@ func main() {
 		fileHandler.ServeHTTP(w, r)
 	})
 
-	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
-
-		msg := struct {
-			Message    string `json:"message"`
-			StatusCode int    `json:"statusCode"`
+	r.Get("/page1", func(w http.ResponseWriter, r *http.Request) {
+		data := struct {
+			Component string      `json:"component"`
+			Props     interface{} `json:"props"`
+			Url       string      `json:"url"`
+			Version   string      `json:"version"`
 		}{
-			Message:    "ok",
-			StatusCode: 200,
+			Component: "Page1",
+			Props: struct {
+				Data Todo `json:"data"`
+			}{
+				Data: Todo{
+					Id:        1,
+					Task:      "take out the trash",
+					Completed: true,
+				},
+			},
+			Url:     "/page1",
+			Version: "",
 		}
 
-		data, err := json.Marshal(msg)
+		b, err := json.Marshal(data)
+
+		fmt.Printf("page object: %s\n", string(b))
 
 		if err != nil {
-			http.Error(w, "meh", 200)
+			http.Error(w, "Server Side Error", http.StatusInternalServerError)
 			return
 		}
 
-		respJson(w, data)
+		sendJson(w, b)
 	})
 
 	http.ListenAndServe("localhost:4040", r)
 }
 
-func respJson(w http.ResponseWriter, data []byte) {
+type Todo struct {
+	Id        int    `json:"id"`
+	Task      string `json:"task"`
+	Completed bool   `json:"completed"`
+}
+
+func sendJson(w http.ResponseWriter, data []byte) {
 	w.Header().Set("content-type", "application/json")
+	w.Header().Set("Vary", "X-Inertia")
+	w.Header().Set("X-Inertia", "true")
 	fmt.Fprint(w, string(data))
 }
