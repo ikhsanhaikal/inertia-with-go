@@ -3,6 +3,7 @@ tmp
 bin
 dist
 client/node_modules
+playground
 
 .vscode/*
 !.vscode/extensions.json

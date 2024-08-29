@@ -5,25 +5,11 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"strings"
+	"text/template"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 )
-
-func sendHtml(w http.ResponseWriter, filePath string) {
-	wd, err := os.Getwd()
-
-	if err != nil {
-		http.Error(w, "Server Side Error", http.StatusInternalServerError)
-		return
-	}
-
-	html, _ := os.ReadFile(fmt.Sprintf("%s%s", wd, filePath))
-
-	w.Header().Add("Content-Type", "text/html")
-	w.Write(html)
-}
 
 func main() {
 
@@ -32,59 +18,100 @@ func main() {
 
 	fileHandler := http.StripPrefix("/assets", http.FileServer(http.Dir("/Users/admin/Desktop/inertia-with-go/dist/assets")))
 
-	r.Use(func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-
-			if r.Header.Get("X-Inertia") == "" && !strings.Contains(r.URL.Path, "assets") {
-				sendHtml(w, "/dist/index.html")
-				return
-			}
-
-			fmt.Printf("%+v\n", r.URL.Path)
-
-			next.ServeHTTP(w, r)
-		})
-	})
-
 	r.Get("/assets/*", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("\n***\ni was being called\n***\n")
 		fileHandler.ServeHTTP(w, r)
 	})
 
+	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+		data := PageObject{
+			Component: "Index",
+			Props:     "{}",
+			Url:       "/",
+			Version:   "",
+		}
+
+		inertiaResponse(w, r, data)
+	})
+
 	r.Get("/page1", func(w http.ResponseWriter, r *http.Request) {
-		data := struct {
-			Component string      `json:"component"`
-			Props     interface{} `json:"props"`
-			Url       string      `json:"url"`
-			Version   string      `json:"version"`
-		}{
+		data := PageObject{
 			Component: "Page1",
 			Props: struct {
 				Data Todo `json:"data"`
 			}{
 				Data: Todo{
-					Id:        1,
+					Id:        11,
 					Task:      "take out the trash",
-					Completed: true,
-				},
-			},
+					Completed: false,
+				}},
 			Url:     "/page1",
 			Version: "",
 		}
 
-		b, err := json.Marshal(data)
+		inertiaResponse(w, r, data)
+	})
 
-		fmt.Printf("page object: %s\n", string(b))
+	r.NotFound(func(w http.ResponseWriter, r *http.Request) {
+		inertiaResponse(w, r, PageObject{
+			Component: "Notfound",
+			Props:     "{}",
+			Url:       "/404",
+			Version:   "",
+		})
+	})
+
+	http.ListenAndServe("localhost:4040", r)
+}
+
+func inertiaResponse(w http.ResponseWriter, r *http.Request, pageObject PageObject) {
+	if r.Header.Get("X-Inertia") == "" {
+		wd, err := os.Getwd()
 
 		if err != nil {
 			http.Error(w, "Server Side Error", http.StatusInternalServerError)
 			return
 		}
 
-		sendJson(w, b)
-	})
+		t1 := template.New("index")
+		t1, err = t1.ParseFiles(fmt.Sprintf("%s/dist/index.html", wd))
 
-	http.ListenAndServe("localhost:4040", r)
+		if err != nil {
+			http.Error(w, "Server Side Error", http.StatusInternalServerError)
+			return
+		}
+
+		props, err := json.Marshal(pageObject.Props)
+
+		if err != nil {
+			http.Error(w, "Server Side Error", http.StatusInternalServerError)
+			return
+		}
+
+		t1.ExecuteTemplate(w, "index.html", PageObject{
+			Component: pageObject.Component,
+			Props:     string(props),
+			Url:       pageObject.Url,
+			Version:   pageObject.Version,
+		})
+
+		return
+	}
+
+	b, err := json.Marshal(pageObject)
+
+	if err != nil {
+		http.Error(w, "Server Side Error", http.StatusInternalServerError)
+		return
+	}
+	sendJson(w, b)
+}
+
+type PageObject struct {
+	Component string      `json:"component"`
+	Props     interface{} `json:"props"`
+	Url       string      `json:"url"`
+	Version   string      `json:"version"`
 }
 
 type Todo struct {
