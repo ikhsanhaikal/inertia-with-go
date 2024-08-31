@@ -6,4 +6,4 @@ Inertia js a client side routing library, untuk mendelegasikan routing task kemb
 
 - [x] Reload window should not redirect user to initial page
 - [x] Use templ untuk initial data-page dinamis
-- [ ] Form
+- [x] Form
