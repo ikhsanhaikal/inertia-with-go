@@ -67,6 +67,7 @@ type PageObject struct {
 
 type Todo struct {
 	Id        int    `json:"id"`
-	Task      string `json:"task"`
+	UserId    int    `json:"userId"`
+	Task      string `json:"title"`
 	Completed bool   `json:"completed"`
 }
